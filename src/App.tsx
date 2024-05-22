@@ -1,92 +1,234 @@
 import { clsx } from "clsx";
-import { useState } from "react";
+import { ChangeEvent, SyntheticEvent, useState } from "react";
+import { Modal } from "./ui/modal";
 
-const weekDays = [
-  "Воскресенье",
-  "Понедельник",
-  "Вторник",
-  "Среда",
-  "Четверг",
-  "Пятница",
-  "Суббота",
+import dayjs, { Dayjs } from "dayjs";
+import updatelocale from "dayjs/plugin/updateLocale";
+
+dayjs.extend(updatelocale);
+dayjs.updateLocale("en", {
+  weekStart: 1,
+});
+
+const weekDays = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
+const months = [
+  "Январь",
+  "Февраль",
+  "Март",
+  "Апрель",
+  "Май",
+  "Июнь",
+  "Июль",
+  "Август",
+  "Сентябрь",
+  "Октябрь",
+  "Ноябрь",
+  "Декабрь",
 ];
 
+interface Todo {
+  date: string;
+  todos: { title: string }[];
+}
+
 export const App = () => {
-  const [date, setDate] = useState(new Date());
+  const [todos, setTodos] = useState<Todo[]>([
+    {
+      date: "2024-05-22T00:00:00",
+      todos: [
+        {
+          title: "todo 1",
+        },
+        {
+          title: "todo 2",
+        },
+      ],
+    },
+    {
+      date: "2024-05-23T00:00:00",
+      todos: [
+        {
+          title: "todo 4",
+        },
+        {
+          title: "todo 5",
+        },
+      ],
+    },
+  ]);
+
+  const handleAddTodo = (todo: { title: string; date: string }) => {
+    console.log(todo, "handleAddTodo");
+    console.log(new Date(todo.date));
+  };
+
   return (
-    <div>
-      <Calendar date={date} />
+    <div className="space-y-5 p-5">
+      <Calendar todos={todos} addTodo={handleAddTodo} />
     </div>
   );
 };
 
 interface CalendarProps {
-  date: Date;
+  todos: Todo[];
+  addTodo: (todo: { title: string; date: string }) => void;
 }
 
 const Calendar = (props: CalendarProps) => {
-  const [date, setDate] = useState(new Date());
+  const { todos, addTodo } = props;
+  const [date, setDate] = useState(dayjs());
 
-  const currentYear = date.getFullYear();
-  const currentMonth = date.getMonth();
+  const startDay = date.startOf("month").startOf("week");
+  const endDay = date.endOf("month").endOf("week");
 
-  // Количество дней в месяце (МАЙ - 31)
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  // День недели 1-го дня
-  const firstDayofMonth = new Date(currentYear, currentMonth, 7).getDay();
-  // День недели последнего дня
-  const lastDayofMonth = new Date(
-    currentYear,
-    currentMonth,
-    daysInMonth,
-  ).getDay();
+  const calendar = [];
 
-  const days = [];
-
-  for (let i = firstDayofMonth; i > 0; i--) {
-    const day = new Date(currentYear, currentMonth, -i + 1);
-    days.push(day);
-  }
-
-  for (let i = 1; i <= daysInMonth; i++) {
-    const day = new Date(currentYear, currentMonth, i);
-    days.push(day);
-  }
-
-  console.log(lastDayofMonth);
-
-  for (let i = lastDayofMonth; i > 0; i--) {
-    const day = new Date(currentYear, currentMonth + 1, i);
-    console.log(day);
-
-    days.push(day);
+  for (let day = startDay; !day.isAfter(endDay); day = day.add(1, "day")) {
+    calendar.push(day);
   }
 
   return (
-    <div className="container mx-auto px-5">
+    <div className="">
       <div className="flex items-center space-x-2">
         <button
-          className="rounded border p-2"
-          onClick={() => setDate(new Date(currentYear, currentMonth - 1))}
+          title="Prev year"
+          className="rounded border px-2 py-1 transition hover:bg-gray-100 active:bg-gray-200"
+          onClick={() => setDate(date.subtract(1, "year"))}
         >
-          Prev month
+          {"<<"}
+        </button>
+        <button
+          title="Prev month"
+          className="rounded border px-2 py-1 transition hover:bg-gray-100 active:bg-gray-200"
+          onClick={() => setDate(date.subtract(1, "month"))}
+        >
+          {"<"}
+        </button>
+        <button
+          title="Next month"
+          className="rounded border px-2 py-1 transition hover:bg-gray-100 active:bg-gray-200"
+          onClick={() => setDate(date.add(1, "month"))}
+        >
+          {">"}
+        </button>
+        <button
+          title="Next year"
+          className="rounded border px-2 py-1 transition hover:bg-gray-100 active:bg-gray-200"
+          onClick={() => setDate(date.add(1, "year"))}
+        >
+          {">>"}
         </button>
         <div>
-          {date.getMonth() + 1}.{date.getFullYear()}
+          {months[date.month()]} {date.year()}
         </div>
-        <button
-          className="rounded border p-2"
-          onClick={() => setDate(new Date(currentYear, currentMonth + 1))}
-        >
-          Next month
-        </button>
       </div>
 
-      <div className="grid grid-cols-7">
-        {days.map((date, index) => (
-          <div key={index}>{date.getDate()}</div>
+      <div className="mt-5 grid grid-cols-7 border-r border-t">
+        {weekDays.map((weekDay, index) => (
+          <div key={index} className={clsx("border-b border-l p-2")}>
+            <p className={clsx("flex h-8 w-8 items-center justify-center", {})}>
+              {weekDay}
+            </p>
+          </div>
         ))}
+        {calendar.map((day, index) => {
+          return (
+            <Cell
+              key={index}
+              date={day}
+              currentDay={day.isSame(dayjs(), "day")}
+              pastDay={!day.isSame(date, "month")}
+            />
+          );
+        })}
       </div>
     </div>
+  );
+};
+
+interface CellType {
+  date: Dayjs;
+}
+
+interface CellProps extends CellType {
+  currentDay: boolean;
+  pastDay: boolean;
+}
+
+const Cell = ({ date, currentDay, pastDay }: CellProps) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <div
+        onClick={() => setOpen(true)}
+        className={clsx("border-b border-l p-2 pb-5")}
+      >
+        <p
+          className={clsx("flex h-8 w-8 items-center justify-center", {
+            "select-none text-gray-300": pastDay,
+            "rounded-full bg-blue-600 font-medium text-white": currentDay,
+          })}
+        >
+          {date.date()}
+        </p>
+      </div>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Добавление задачи"
+      >
+        <Form onSubmit={() => {}} />
+      </Modal>
+    </>
+  );
+};
+
+const Form = ({
+  onSubmit,
+}: {
+  onSubmit: (todo: { date: string; title: string }) => void;
+}) => {
+  const [values, setValues] = useState({
+    title: "",
+    date: "",
+  });
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const name = e.target.name;
+    const value = e.target.value;
+    setValues((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e: SyntheticEvent) => {
+    e.preventDefault();
+    onSubmit(values);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col space-y-4">
+      <input
+        type="text"
+        value={values.title}
+        onChange={handleChange}
+        name="title"
+        required
+        className="rounded border px-4 py-2"
+      />
+      <input
+        type="date"
+        value={values.date}
+        onChange={handleChange}
+        name="date"
+        required
+        className="rounded border px-4 py-2"
+      />
+      <button
+        type="submit"
+        className="rounded bg-blue-600 px-5 py-2 font-medium text-white transition hover:bg-blue-700"
+      >
+        Add todo
+      </button>
+    </form>
   );
 };
